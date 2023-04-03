@@ -74,6 +74,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "database/database-dummy.h"
 #include "gameparams.h"
 
+// ---- Modification by RepComm, allows access to getStack for getting lua context
+// #include "script/cpp_api/s_base.h"
+//---- End
+
 class ClientNotFoundException : public BaseException
 {
 public:
@@ -2458,6 +2462,7 @@ void Server::SendBlocks(float dtime)
 		cache_ptr = &cache;
 	}
 
+
 	for (const PrioritySortedBlockTransfer &block_to_send : queue) {
 		if (total_sending >= max_blocks_to_send)
 			break;
@@ -2470,6 +2475,22 @@ void Server::SendBlocks(float dtime)
 				CS_Active);
 		if (!client)
 			continue;
+
+		//---- RepComm modification to try and ask lua if the client should be deafened to this chunk or not
+		//basically ask lua if mapblock at x,y,z should be updated for playername
+		auto x = block_to_send.pos.X;
+		auto y = block_to_send.pos.Y;
+		auto z = block_to_send.pos.Z;
+		auto player = m_env->getPlayer(block_to_send.peer_id);
+
+		//call into lua and see if we should defean client by name of mapblock update
+		if (player != NULL) {
+			auto pname = player->getName();
+			if (pname != NULL) {
+				if (!m_script->can_mapblock_update(x,y,z,pname)) continue;
+			}
+		}
+		//---- End RepComm modifications
 
 		SendBlockNoLock(block_to_send.peer_id, block, client->serialization_version,
 				client->net_proto_version, cache_ptr);

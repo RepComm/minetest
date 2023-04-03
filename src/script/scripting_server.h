@@ -61,6 +61,8 @@ public:
 	u32 queueAsync(std::string &&serialized_func,
 		PackedValue *param, const std::string &mod_origin);
 
+	bool can_mapblock_update (int x, int y, int z, const char * playername);
+
 private:
 	void InitializeModApi(lua_State *L, int top);
 

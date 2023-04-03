@@ -124,6 +124,57 @@ void ServerScripting::stepAsync()
 	asyncEngine.step(getStack());
 }
 
+bool ServerScripting::can_mapblock_update (int x, int y, int z, const char * playername) {
+	// function do_mapblock_update (x, y, z, playerName) -> boolean
+	auto L = getStack();
+	bool result = true;
+	
+	if (L == NULL) {
+		std::printf("no lua context, skipping check\n");
+		return result;
+	}
+
+	luaL_dostring(L,
+		"if minetest.can_mapblock_update == nil then\n"
+			"function can_mapblock_update (x,y,z,name)\n"
+				"if x==-6 then\n"
+					"return true\n"
+				"end\n"
+				"return false\n"
+			"end\n"
+			"minetest.can_mapblock_update = can_mapblock_update\n"
+			"print('added minetest.can_mapblock_update')\n"
+		"end"
+	);
+	// luaL_dostring(L, "print(minetest.can_mapblock_update)");
+	
+	lua_getglobal(L, "minetest");
+	lua_getfield(L, -1, "can_mapblock_update");
+
+	if(lua_isfunction(L, -1) ) {
+		std::printf("Player chunk update %s %d %d %d\n", playername, x, y, z);	
+		// push function arguments into stack
+		lua_pushnumber(L, x);
+		lua_pushnumber(L, y);
+		lua_pushnumber(L, z);
+		lua_pushstring(L, playername);
+
+		lua_pcall(L,4,1,0);
+
+		if (!lua_isnil(L, -1)) {
+			result = lua_toboolean(L, -1);
+			lua_pop(L,1);
+		}
+	} else {
+		std::printf("minetest.can_mapblock_update not found\n");
+	}
+
+	// lua_pop(L, 1);
+	lua_pop(L, 1);
+
+	return result;
+}
+
 u32 ServerScripting::queueAsync(std::string &&serialized_func,
 	PackedValue *param, const std::string &mod_origin)
 {
